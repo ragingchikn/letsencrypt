@@ -151,8 +151,7 @@ class BasicParserTest(util.ParserTest):
     @mock.patch("letsencrypt_apache.parser.ApacheParser._get_runtime_cfg")
     def test_update_runtime_vars_bad_output(self, mock_cfg):
         mock_cfg.return_value = "Define: TLS=443=24"
-        self.assertRaises(
-            errors.PluginError, self.parser.update_runtime_variables, "ctl")
+        self.parser.update_runtime_variables("ctl")
 
         mock_cfg.return_value = "Define: DUMP_RUN_CFG\nDefine: TLS=443=24"
         self.assertRaises(
@@ -185,6 +184,15 @@ class ParserInitTest(util.ApacheTest):
         shutil.rmtree(self.config_dir)
         shutil.rmtree(self.work_dir)
 
+    @mock.patch("letsencrypt_apache.parser.ApacheParser._get_runtime_cfg")
+    def test_unparsable(self, mock_cfg):
+        from letsencrypt_apache.parser import ApacheParser
+        mock_cfg.return_value = ('Define: TEST')
+        self.assertRaises(
+            errors.PluginError,
+            ApacheParser, self.aug, os.path.relpath(self.config_path),
+            "/dummy/vhostpath", "ctl", version=(2, 2, 22))
+
     def test_root_normalized(self):
         from letsencrypt_apache.parser import ApacheParser
 
@@ -193,7 +201,9 @@ class ParserInitTest(util.ApacheTest):
             path = os.path.join(
                 self.temp_dir,
                 "debian_apache_2_4/////two_vhost_80/../two_vhost_80/apache2")
-            parser = ApacheParser(self.aug, path, "dummy_ctl")
+
+            parser = ApacheParser(self.aug, path,
+                                  "/dummy/vhostpath", "dummy_ctl")
 
         self.assertEqual(parser.root, self.config_path)
 
@@ -202,7 +212,8 @@ class ParserInitTest(util.ApacheTest):
         with mock.patch("letsencrypt_apache.parser.ApacheParser."
                         "update_runtime_variables"):
             parser = ApacheParser(
-                self.aug, os.path.relpath(self.config_path), "dummy_ctl")
+                self.aug, os.path.relpath(self.config_path),
+                "/dummy/vhostpath", "dummy_ctl")
 
         self.assertEqual(parser.root, self.config_path)
 
@@ -211,7 +222,8 @@ class ParserInitTest(util.ApacheTest):
         with mock.patch("letsencrypt_apache.parser.ApacheParser."
                         "update_runtime_variables"):
             parser = ApacheParser(
-                self.aug, self.config_path + os.path.sep, "dummy_ctl")
+                self.aug, self.config_path + os.path.sep,
+                "/dummy/vhostpath", "dummy_ctl")
         self.assertEqual(parser.root, self.config_path)
 
 
